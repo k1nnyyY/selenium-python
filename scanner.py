@@ -21,9 +21,8 @@ driver = webdriver.Chrome()  # Убедитесь, что у вас устано
 driver.get(login_url)  # Открываем страницу логина
 
 # Ожидание, пока инпут логина станет доступен
-wait = WebDriverWait(driver, 20)  # Увеличено время ожидания до 20 секунд
-login_input = wait.until(EC.presence_of_element_located(
-    (By.CSS_SELECTOR, 'input#lable-login')))
+wait = WebDriverWait(driver, 20)
+login_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input#lable-login')))
 password_input = driver.find_element(By.CSS_SELECTOR, 'input#lable-password')
 
 # Вводим логин и пароль
@@ -42,8 +41,7 @@ driver.get(purchase_order_url)
 
 # Ожидание загрузки страницы с инпутом для кода
 input_selector = 'input[data-test-id="consignment-selector-input"]'
-input_element = wait.until(EC.presence_of_element_located(
-    (By.CSS_SELECTOR, input_selector)))
+input_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, input_selector)))
 
 # Обработка данных из Excel
 for index, row in df.iterrows():
@@ -51,14 +49,62 @@ for index, row in df.iterrows():
     count = row[2]  # Столбец C (количество)
 
     for _ in range(count):
-        # Поиск инпута
-        input_element = driver.find_element(By.CSS_SELECTOR, input_selector)
+        # Ожидание инпута перед каждой итерацией
+        input_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, input_selector)))
+        
+        # Очистка поля ввода перед вводом
+        input_element.clear()
+        
         # Вводим код
         input_element.send_keys(str(code))
+        
+        # Проверка, что код действительно был введен
+        if input_element.get_attribute('value') != str(code):
+            print(f"Ошибка: Код {code} не был введен корректно.")
+            continue
+        
         # Эмулируем нажатие Enter
         input_element.send_keys(Keys.ENTER)
+        
         # Пауза между отправками (при необходимости)
         time.sleep(1)
+
+# Ввод "uniroba" в поле контрагента
+contractor_input_selector = 'div[data-test-id="SystemFields.sourceAgent"] input[data-test-id="selector-input"]'
+contractor_input_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, contractor_input_selector)))
+
+# Очистка инпута перед вводом текста
+contractor_input_element.clear()
+
+# Ввод "uniroba"
+contractor_input_element.send_keys('uniroba')
+
+# Эмуляция нажатия Enter
+contractor_input_element.send_keys(Keys.ENTER)
+
+# Ожидание кнопки "Сохранить" и нажатие на неё 2-3 раза с задержкой с использованием JavaScript
+save_button_selector = 'button[data-test-id="editor-toolbar-save-button"]'
+for _ in range(3):  # Нажимаем на кнопку 3 раза
+    save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, save_button_selector)))
+    
+    # Проверяем, активна ли кнопка
+    if save_button.is_enabled():
+        # Используем JavaScript для нажатия на кнопку
+        driver.execute_script("arguments[0].click();", save_button)
+        print("Нажата кнопка 'Сохранить' с помощью JavaScript")
+        time.sleep(1)  # Задержка в 1 секунду между нажатиями
+    else:
+        print("Кнопка 'Сохранить' не активна.")
+
+# Ожидание сообщения об успешном сохранении
+success_message_selector = 'div.gwt-Label'  # Селектор для элемента с текстом "Заказ сохранён"
+success_message = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, success_message_selector)))
+
+# Проверка текста сообщения
+if "Заказ сохранён" in success_message.text:
+    print("Сохранение выполнено успешно!")
+else:
+    print("Ошибка сохранения!")
 
 # Закрытие браузера
 driver.quit()
